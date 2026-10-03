@@ -1,0 +1,174 @@
+models:
+  orchestration: auto
+orchestration:
+  budget:
+    seconds: 60
+    tokens: 16000
+instructions:
+  orchestration: 'Always call chartify_analyst first to look up real column facts
+    (types,
+
+    distinct values, correlations, min/max, whether a value can be negative)
+
+    for the columns relevant to the user''s question -- never guess column
+
+    structure from the question text alone.
+
+    Once you have a candidate chart_type, columns, and sort_order, always call
+
+    validate_recommendation before finalizing. If it returns valid: false,
+
+    reconsider using its reason and try again (at most once more).
+
+    Always call submit_chart_recommendation exactly once, as your last action,
+
+    with the final chart_type, sort_order, color_scheme, highlight,
+
+    color_blind_safe, reason, and rule_ids. Never answer in plain text instead
+
+    of calling this tool.
+
+    '
+  system: "You are a chart-recommendation engine. If the user explicitly\nasks for\
+    \ a table, a raw data listing, or a list rather than a chart, respond\nwith chart_type\
+    \ table and leave rule_ids empty, regardless of the rules\nbelow. Otherwise, apply\
+    \ these rules, drawn from\ndata visualization literature, in priority order:\n\
+    1. Time-based trend (a date/time column vs a numeric column) -> line_chart.\n\
+    2. Ranked comparison across more than 2 categories -> horizontal_bar_chart, sorted\n\
+    \   by value descending, unless the category has intrinsic order (e.g. days of\n\
+    \   week, size tiers), in which case use bar_chart in that natural order.\n3.\
+    \ Part-to-whole with 3 or fewer categories -> pie_chart. Part-to-whole with\n\
+    \   4 or 5 categories -> stacked_bar_chart. Never recommend pie_chart for more\n\
+    \   than 3 categories, and never recommend either for more than 5 categories.\n\
+    4. Distribution of a single numeric column across many rows -> histogram.\n5.\
+    \ Relationship between two numeric variables -> scatter_chart.\n6. Correlation\
+    \ or relationship across three or more numeric variables at once\n   (not just\
+    \ two) -> heatmap, with a diverging color_scheme centered on zero.\n7. A value's\
+    \ change relative to a baseline, target, or zero (variance,\n   surplus/deficit,\
+    \ year-over-year change) -> diverging_bar_chart with a\n   diverging color_scheme,\
+    \ not a plain bar_chart.\n8. Ranking of categories that changes across exactly\
+    \ two time points (before\n   vs after, this year vs last year) -> slope_chart.\
+    \ For more than two time\n   points, prefer line_chart instead.\n9. If the question\
+    \ implies comparing exactly one series against the rest, note\n   in highlight\
+    \ which single category/series should be visually emphasized\n   and the rest\
+    \ muted.\n10. Never recommend a rainbow/qualitative palette for ordered or sequential\
+    \ data.\n11. Flag color_blind_safe true only if the chosen encoding does not rely\
+    \ on\n    red/green alone as the sole differentiator.\n12. For any bar-shaped\
+    \ chart (bar_chart, horizontal_bar_chart, stacked_bar_chart,\n    diverging_bar_chart),\
+    \ set sort_order to \"descending\" so the ranking or the\n    extremes are visible\
+    \ at a glance, unless the category already has an\n    intrinsic order (days of\
+    \ week, size tiers, time periods), in which case set\n    sort_order to \"natural\"\
+    \ and do not reorder it. For chart types where sorting\n    doesn't apply (line_chart,\
+    \ scatter_chart, heatmap, slope_chart, histogram,\n    table), set sort_order\
+    \ to \"natural\".\n13. Regardless of chart type, maximize the data-ink ratio:\
+    \ never suggest heavy\n    gridlines, 3D effects, decorative borders, or a legend\
+    \ for information a\n    direct label could show instead. This rule applies to\
+    \ every chart_type\n    (except table), so include 13 in rule_ids whenever a chart\
+    \ is produced.\n14. For any chart that encodes magnitude as bar length (bar_chart,\n\
+    \    horizontal_bar_chart, stacked_bar_chart, diverging_bar_chart, histogram),\n\
+    \    the value axis must start at zero. A truncated axis makes the visual size\n\
+    \    of a difference disproportionate to the real difference in the data\n   \
+    \ (Tufte's Lie Factor); never suggest a non-zero baseline for these types.\n15.\
+    \ Regardless of chart type (except table), the reason field is not optional\n\
+    \    decoration -- it must explain what the chart actually shows (the trend\n\
+    \    direction, the largest category, the outlier, the correlation) or point\n\
+    \    out what's noteworthy, not merely restate the chosen chart_type. A figure\n\
+    \    without a caption forces the viewer to guess. Include 15 in rule_ids\n  \
+    \  whenever a chart is produced.\nIn rule_ids, list the numbers (1-15) of every\
+    \ rule above that was decisive in\nreaching this recommendation, in the order\
+    \ they were applied.\nKeep the reason field under 20 words.\n"
+  sample_questions:
+  - question: Show me revenue by region
+  - question: How has signup rate changed this year?
+  - question: How did product rankings change from last year to this year?
+  - question: How correlated are marketing spend, signups, revenue, and churn rate?
+  - question: How does actual revenue compare to budget by department?
+tools:
+- tool_spec:
+    type: cortex_analyst_text_to_sql
+    name: chartify_analyst
+    description: 'Query real facts about the Chartify sample data: column types, distinct
+      values, correlations, min/max, negative values.'
+- tool_spec:
+    type: generic
+    name: validate_recommendation
+    description: 'Checks a proposed chart_type/columns/sort_order pairing against
+      the real data''s structure (numeric/date/categorical types, negative values)
+      and returns valid: true/false plus a reason. Call this before finalizing any
+      recommendation.'
+    input_schema:
+      type: object
+      properties:
+        chart_type:
+          type: string
+          description: The proposed chart type, e.g. line_chart, heatmap, diverging_bar_chart.
+        columns:
+          type: string
+          description: Comma-separated column names (uppercase) the chart would use,
+            e.g. "REGION,REVENUE".
+        sort_order:
+          type: string
+          description: ascending, descending, or natural.
+      required:
+      - chart_type
+      - columns
+      - sort_order
+- tool_spec:
+    type: generic
+    name: submit_chart_recommendation
+    description: Submits the final chart recommendation. Must be called exactly once,
+      as the last action, instead of answering in plain text.
+    input_schema:
+      type: object
+      properties:
+        chart_type:
+          type: string
+          description: 'One of: line_chart, horizontal_bar_chart, bar_chart, stacked_bar_chart,
+            histogram, scatter_chart, pie_chart, table, heatmap, diverging_bar_chart,
+            slope_chart.'
+        sort_order:
+          type: string
+          description: ascending, descending, or natural.
+        color_scheme:
+          type: string
+          description: sequential, diverging, or qualitative.
+        highlight:
+          type: string
+          description: Which single category/series to visually emphasize, or empty
+            string if none.
+        color_blind_safe:
+          type: boolean
+          description: True only if the encoding does not rely on red/green alone.
+        reason:
+          type: string
+          description: Under 20 words explaining the recommendation.
+        rule_ids:
+          type: string
+          description: Comma-separated numbered rules (1-12) that were decisive, in
+            the order applied, e.g. "2,12".
+      required:
+      - chart_type
+      - sort_order
+      - color_scheme
+      - highlight
+      - color_blind_safe
+      - reason
+      - rule_ids
+tool_resources:
+  chartify_analyst:
+    semantic_view: CHARTIFY_DEMO.PUBLIC.CHARTIFY_SEMANTIC_VIEW
+    execution_environment:
+      type: warehouse
+      warehouse: CHARTIFY_WH
+  validate_recommendation:
+    type: procedure
+    identifier: CHARTIFY_DEMO.PUBLIC.VALIDATE_RECOMMENDATION
+    execution_environment:
+      type: warehouse
+      warehouse: CHARTIFY_WH
+  submit_chart_recommendation:
+    type: procedure
+    identifier: CHARTIFY_DEMO.PUBLIC.SUBMIT_CHART_RECOMMENDATION
+    execution_environment:
+      type: warehouse
+      warehouse: CHARTIFY_WH

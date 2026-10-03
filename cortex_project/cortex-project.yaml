@@ -1,0 +1,12 @@
+version: 1
+artifacts:
+  - path: CHARTIFY_AGENT.agent.yaml
+    type: cortex_agent
+    targets:
+      default:
+        object: CHARTIFY_DEMO.PUBLIC.CHARTIFY_AGENT
+  - path: CHARTIFY_SEMANTIC_VIEW.sv.yaml
+    type: semantic_view
+    targets:
+      default:
+        object: CHARTIFY_DEMO.PUBLIC.CHARTIFY_SEMANTIC_VIEW

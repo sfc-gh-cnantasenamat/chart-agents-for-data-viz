@@ -1,0 +1,154 @@
+name: CHARTIFY_SEMANTIC_VIEW
+description: 'Sample data backing the Chartify chart-recommendation demo: daily signup
+  rates, revenue by region and product line, correlated marketing/signup/revenue/churn
+  metrics, department budget variance, and product rank changes year over year.'
+tables:
+- name: BUDGET_VARIANCE
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: BUDGET_VARIANCE
+  dimensions:
+  - name: DEPARTMENT
+    expr: DEPARTMENT
+    data_type: VARCHAR(16777216)
+    access_modifier: public_access
+  facts:
+  - name: ACTUAL_MINUS_BUDGET
+    expr: ACTUAL_MINUS_BUDGET
+    data_type: FLOAT
+    access_modifier: public_access
+- name: CORRELATED_METRICS
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: CORRELATED_METRICS
+  facts:
+  - name: CHURN_RATE
+    expr: CHURN_RATE
+    data_type: FLOAT
+    access_modifier: public_access
+  - name: MARKETING_SPEND
+    expr: MARKETING_SPEND
+    data_type: FLOAT
+    access_modifier: public_access
+  - name: REVENUE
+    expr: REVENUE
+    data_type: FLOAT
+    access_modifier: public_access
+  - name: SIGNUPS
+    expr: SIGNUPS
+    data_type: FLOAT
+    access_modifier: public_access
+- name: DAILY_SIGNUPS
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: DAILY_SIGNUPS
+  facts:
+  - name: SIGNUP_RATE
+    expr: SIGNUP_RATE
+    data_type: FLOAT
+    access_modifier: public_access
+  time_dimensions:
+  - name: DATE
+    expr: DATE
+    data_type: DATE
+    access_modifier: public_access
+- name: PRODUCT_REVENUE
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: PRODUCT_REVENUE
+  dimensions:
+  - name: PRODUCT_LINE
+    expr: PRODUCT_LINE
+    data_type: VARCHAR(16777216)
+    access_modifier: public_access
+  facts:
+  - name: REVENUE
+    expr: REVENUE
+    data_type: FLOAT
+    access_modifier: public_access
+  time_dimensions:
+  - name: DATE
+    expr: DATE
+    data_type: DATE
+    access_modifier: public_access
+- name: RANK_CHANGE
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: RANK_CHANGE
+  dimensions:
+  - name: PRODUCT
+    expr: PRODUCT
+    data_type: VARCHAR(16777216)
+    access_modifier: public_access
+  - name: RANK_LAST_YEAR
+    expr: RANK_LAST_YEAR
+    data_type: NUMBER(38,0)
+    access_modifier: public_access
+  - name: RANK_THIS_YEAR
+    expr: RANK_THIS_YEAR
+    data_type: NUMBER(38,0)
+    access_modifier: public_access
+- name: REGION_REVENUE
+  base_table:
+    database: CHARTIFY_DEMO
+    schema: PUBLIC
+    table: REGION_REVENUE
+  dimensions:
+  - name: REGION
+    expr: REGION
+    data_type: VARCHAR(16777216)
+    access_modifier: public_access
+  facts:
+  - name: REVENUE
+    expr: REVENUE
+    data_type: FLOAT
+    access_modifier: public_access
+verified_queries:
+- name: '"0;1"'
+  sql: SELECT REGION, REVENUE FROM region_revenue ORDER BY REVENUE DESC
+  question: What is revenue by region?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"1;1"'
+  sql: SELECT DATE, SIGNUP_RATE FROM daily_signups ORDER BY DATE
+  question: How has signup rate changed over time?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"2;1"'
+  sql: SELECT CORR(MARKETING_SPEND, REVENUE) AS CORRELATION FROM correlated_metrics
+  question: What is the correlation between marketing spend and revenue?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"3;1"'
+  sql: SELECT DEPARTMENT, ACTUAL_MINUS_BUDGET FROM budget_variance ORDER BY ACTUAL_MINUS_BUDGET
+  question: How does actual spending compare to budget by department?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"4;1"'
+  sql: SELECT PRODUCT, RANK_LAST_YEAR, RANK_THIS_YEAR FROM rank_change
+  question: How did product rankings change from last year to this year?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"5;1"'
+  sql: SELECT COUNT(DISTINCT REGION) AS DISTINCT_REGIONS FROM region_revenue
+  question: How many distinct regions are there?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
+- name: '"6;1"'
+  sql: SELECT MIN(ACTUAL_MINUS_BUDGET) AS MIN_VAL, MAX(ACTUAL_MINUS_BUDGET) AS MAX_VAL
+    FROM budget_variance
+  question: What is the minimum and maximum budget variance?
+  verified_at: 1789784391
+  verified_by: Semantic Model Generator
+  use_as_onboarding_question: false
